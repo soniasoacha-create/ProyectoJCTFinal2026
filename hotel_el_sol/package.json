@@ -1,0 +1,28 @@
+{
+  "name": "proyecto_adso",
+  "version": "1.0.0",
+  "description": "Proyecto de ejemplo con Node.js, Express y MySQL",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node seed.js",
+    "servicios:precios": "node scripts_sql/asignar_precios_servicios_aleatorios.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "John Castillo Torres",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

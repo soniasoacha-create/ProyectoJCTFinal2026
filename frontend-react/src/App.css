@@ -1,0 +1,416 @@
+/* ===========================
+   ESTILOS GENERALES
+=========================== */
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+}
+
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===========================
+   HEADER Y NAVEGACIÓN
+=========================== */
+
+.app-header {
+    background-color: #ffffff;
+    padding: 20px 0;
+    border-bottom: 3px solid #007bff;
+    text-align: center;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: #333;
+}
+
+.navbar-horizontal {
+    margin-top: 15px;
+    background-color: #f8f9fa;
+    padding: 10px 0;
+    border-top: 1px solid #ddd;
+    border-bottom: 2px solid #ccc;
+}
+
+.navbar-horizontal ul {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.navbar-horizontal button {
+    padding: 10px 18px;
+    font-size: 1rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.navbar-horizontal button:hover {
+    background-color: #0056b3;
+}
+
+.navbar-horizontal button.active {
+    background-color: #004a99;
+    transform: scale(1.05);
+}
+
+/* ===========================
+   CONTENIDO PRINCIPAL
+=========================== */
+
+main {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.content-wrapper {
+    width: 100%;
+    max-width: 1100px;
+}
+
+.main-title {
+    text-align: center;
+    color: #007bff;
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+}
+
+/* ===========================
+   FORMULARIOS
+=========================== */
+
+form {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+}
+
+form h2 {
+    margin-top: 0;
+    color: #007bff;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+form input,
+form select,
+form textarea {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+form textarea {
+    resize: vertical;
+}
+
+/* Botones del formulario */
+form button {
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+/* Colores principales */
+.btn-primary {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.btn-primary:hover {
+    background-color: #e0a800;
+}
+
+.btn-secondary {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #138496;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #b52a36;
+}
+
+/* ===========================
+   TABLAS
+=========================== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+table th {
+    background-color: #007bff;
+    color: white;
+    padding: 12px;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+table tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Botones dentro de tablas */
+.actions-cell button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    margin: 0 3px;
+}
+
+/* ===========================
+   NOTIFICACIONES
+=========================== */
+
+.notification {
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.notification.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.notification.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* ===========================
+   RESPONSIVIDAD
+=========================== */
+
+@media (max-width: 768px) {
+    table {
+        min-width: 600px;
+    }
+
+    .navbar-horizontal ul {
+        flex-wrap: wrap;
+    }
+
+    .navbar-horizontal button {
+        font-size: 0.9rem;
+    }
+}
+
+/* ===========================
+   ADICIONES: COLORES DE ESTADO Y ACCIONES
+=========================== */
+
+/* Badges de estado para Habitaciones */
+.status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: capitalize;
+    display: inline-block;
+}
+
+.status-badge.disponible {
+    background-color: #d4edda; /* Verde claro */
+    color: #155724;
+}
+
+.status-badge.ocupada {
+    background-color: #f8d7da; /* Rojo claro */
+    color: #721c24;
+}
+
+.status-badge.mantenimiento {
+    background-color: #fff3cd; /* Amarillo claro */
+    color: #856404;
+}
+
+/* Botones específicos de la tabla (Sincronización con componentes) */
+.btn-edit {
+    background-color: #17a2b8; /* Azul/Cian */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+.btn-delete {
+    background-color: #dc3545; /* Rojo */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-edit:hover { background-color: #138496; }
+.btn-delete:hover { background-color: #a71d2a; }
+
+/* Colores para los roles en la lista de usuarios */
+.status-badge.moderador {
+    background-color: #fff3e0; /* Naranja muy claro */
+    color: #e65100;           /* Naranja oscuro */
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+.status-badge.cliente {
+    background-color: #e3f2fd; /* Azul muy claro */
+    color: #0d47a1;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+/* Responsividad: Contenedor para que la tabla no se corte en móviles */
+.table-container {
+    width: 100%;
+    overflow-x: auto; /* Permite scroll lateral si la pantalla es chica */
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ===========================
+   ESTILOS PARA LANDING PAGE
+=========================== */
+
+.landing-wrapper {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+/* Efecto Hero (Fondo con imagen) */
+.hero {
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.5s ease;
+}
+
+/* Tarjetas de Habitaciones (Efecto Elevación) */
+.card-habitacion {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    max-width: 320px;
+    border: 1px solid #eee;
+}
+
+.card-habitacion:hover {
+    transform: translateY(-10px); /* Se levanta al pasar el mouse */
+    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+    border-color: #ffc107; /* Color dorado del hotel */
+}
+
+.card-habitacion img {
+    border-radius: 10px;
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    margin-bottom: 15px;
+}
+
+.card-habitacion h3 {
+    margin: 10px 0;
+    color: #2c3e50;
+    font-size: 1.3rem;
+}
+
+/* Tarjetas de Servicios (Circulares) */
+.card-servicio {
+    padding: 20px;
+    transition: transform 0.3s;
+}
+
+.card-servicio:hover {
+    transform: scale(1.1);
+}
+
+.card-servicio img {
+    border: 4px solid #007bff;
+    padding: 5px;
+    transition: border-color 0.3s;
+}
+
+.card-servicio:hover img {
+    border-color: #ffc107;
+}
+
+/* Botón de Acceso Admin en Landing */
+.admin-access-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3);
+}
+
+/* Footer de la Landing */
+footer {
+    border-top: 1px solid #444;
+}
+
+/* Ajustes de Grid para las secciones */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
