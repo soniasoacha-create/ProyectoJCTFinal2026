@@ -15,6 +15,12 @@ function UserList({ onUserEdit, refreshListToggle }) {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const handleEditClick = (user) => {
+    if (typeof onUserEdit === "function") {
+      onUserEdit(user);
+    }
+  };
+
   useEffect(() => {
     fetchUsuarios();
   }, [refreshListToggle]);
@@ -105,7 +111,7 @@ function UserList({ onUserEdit, refreshListToggle }) {
                       <div className="d-flex gap-2">
                         <button
                           className="btn btn-sm btn-outline-primary flex-grow-1"
-                          onClick={() => onUserEdit(user)}
+                          onClick={() => handleEditClick(user)}
                           title="Editar"
                         >
                           ✏️ Editar
@@ -159,7 +165,7 @@ function UserList({ onUserEdit, refreshListToggle }) {
                         <td className="text-center">
                           <button
                             className="btn btn-sm btn-outline-primary me-2"
-                            onClick={() => onUserEdit(user)}
+                            onClick={() => handleEditClick(user)}
                             title="Editar"
                           >
                             ✏️

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAdminOrModerator, authenticate } from "../middlewares/roleMiddleware.js";
 import { 
     listarReservas, 
+    obtenerReservasActivas,
     obtenerHabitacionesDisponiblesEdicion, 
     crearReserva,
     obtenerReservaPorId,
@@ -25,6 +26,13 @@ const router = Router();
  * @access Autenticado
  */
 router.get("/", authenticate, listarReservas);
+
+/**
+ * @route GET /api/reservas/activas
+ * @desc Listar reservas activas para consumos y operación de recepción
+ * @access Autenticado
+ */
+router.get('/activas', authenticate, obtenerReservasActivas);
 
 /**
  * @route GET /api/reservas/resumen/:id

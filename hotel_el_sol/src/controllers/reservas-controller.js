@@ -99,10 +99,18 @@ export const obtenerHabitacionesDisponiblesEdicion = async (req, res) => {
  */
 export const crearReserva = async (req, res) => {
     const { id_usuario, id_habitacion, fecha_checkin, fecha_checkout, total_huespedes, estado_reserva, servicios } = req.body;
+    const usuarioAutenticado = req.user;
+    const idUsuarioReserva = usuarioAutenticado?.rol === 'cliente' ? usuarioAutenticado.id : id_usuario;
     
     try {
+        if (usuarioAutenticado?.rol === 'cliente' && id_usuario !== undefined && Number(id_usuario) !== Number(usuarioAutenticado.id)) {
+            return res.status(403).json({
+                message: 'No puedes crear reservas para otro usuario'
+            });
+        }
+
         // Validar datos obligatorios
-        const missingFields = getMissingReservaFields(req.body);
+        const missingFields = getMissingReservaFields({ ...req.body, id_usuario: idUsuarioReserva });
         if (missingFields.length > 0) {
             return res.status(400).json({
                 message: 'Faltan datos obligatorios para crear la reserva',
@@ -187,7 +195,7 @@ export const crearReserva = async (req, res) => {
                 INSERT INTO reservas 
                 (id_usuario, id_habitacion, fecha_checkin, fecha_checkout, total_huespedes, precio_total, estado_reserva, fecha_reserva)
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            `, [id_usuario, id_habitacion, fecha_checkin, fecha_checkout, totalHuespedesNum, precioHabitacion, estado_reserva || 'pendiente']);
+            `, [idUsuarioReserva, id_habitacion, fecha_checkin, fecha_checkout, totalHuespedesNum, precioHabitacion, estado_reserva || 'pendiente']);
 
             const id_reserva = resultado.insertId;
 
@@ -510,5 +518,44 @@ export const obtenerResumenReserva = async (req, res) => {
     } catch (error) {
         console.error("Error en obtenerResumenReserva:", error.message);
         res.status(500).json({ message: "Error al obtener el resumen" });
+    }
+};
+
+/**
+ * ✅ OBTENER RESERVAS ACTIVAS
+ * Reserva activa: confirmada o en curso y con checkout posterior al momento actual.
+ */
+export const obtenerReservasActivas = async (req, res) => {
+    try {
+        const [rows] = await dbPool.query(`
+            SELECT
+                r.id_reserva,
+                r.id_usuario,
+                r.id_habitacion,
+                r.fecha_checkin,
+                r.fecha_checkout,
+                r.total_huespedes,
+                r.estado_reserva,
+                u.nombres,
+                u.apellidos,
+                h.numero_habitacion,
+                t.nombre_tipo
+            FROM reservas r
+            JOIN usuarios u ON r.id_usuario = u.id_usuarios
+            JOIN habitaciones h ON r.id_habitacion = h.id_habitacion
+            JOIN tipos_habitacion t ON h.id_tipo_habitacion = t.id_tipo_habitacion
+            WHERE r.estado_reserva IN ('confirmada', 'check-in')
+              AND r.fecha_checkout >= CURDATE()
+            ORDER BY r.fecha_checkin ASC
+        `);
+
+        res.status(200).json({
+            message: 'Reservas activas obtenidas exitosamente',
+            total: rows.length,
+            data: rows
+        });
+    } catch (error) {
+        console.error('Error en obtenerReservasActivas:', error.message);
+        res.status(500).json({ message: 'Error al obtener reservas activas' });
     }
 };

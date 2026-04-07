@@ -41,13 +41,6 @@ const facturacionService = {
 			if (!isNotFoundOrForbidden(errorTodas)) throw errorTodas;
 		}
 
-		try {
-			const response = await api.get(API_URL);
-			return response.data;
-		} catch (errorRaiz) {
-			if (!isNotFoundOrForbidden(errorRaiz)) throw errorRaiz;
-		}
-
 		if (idUsuario) {
 			const response = await api.get(`${API_URL}/usuario/${idUsuario}`);
 			return response.data;

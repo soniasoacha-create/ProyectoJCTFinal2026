@@ -1,23 +1,30 @@
 // src/components/UserForm.js
 import React, { useState, useEffect } from "react";
-import Swal from "sweetalert2"; // ✅ Importamos SweetAlert2
+import Swal from "sweetalert2";
+import api from "../api/axiosConfig";
 
-// MODIFICACIÓN: Se cambia onFormSubmit por onSaveComplete para coincidir con App.js
+const EMPTY_FORM = {
+  nombres: "",
+  apellidos: "",
+  email: "",
+  telefono: "",
+  tipo_usuario: ""
+};
+
 function UserForm({ userToEdit, onSaveComplete }) {
-  const [formData, setFormData] = useState({
-    nombres: "",
-    apellidos: "",
-    email: "",
-    telefono: "",
-    tipo_usuario: ""
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
-  // Efecto para cargar datos en caso de edición
   useEffect(() => {
     if (userToEdit) {
-      setFormData(userToEdit);
+      setFormData({
+        nombres: userToEdit.nombres || "",
+        apellidos: userToEdit.apellidos || "",
+        email: userToEdit.email || "",
+        telefono: userToEdit.telefono || "",
+        tipo_usuario: userToEdit.tipo_usuario || userToEdit.rol || ""
+      });
     } else {
-      setFormData({ nombres: "", apellidos: "", email: "", telefono: "", tipo_usuario: "" });
+      setFormData(EMPTY_FORM);
     }
   }, [userToEdit]);
 
@@ -28,54 +35,58 @@ function UserForm({ userToEdit, onSaveComplete }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Validación manual en español antes de enviar
-    if (!formData.email.includes("@")) {
+    if (!formData.nombres.trim() || !formData.apellidos.trim() || !formData.email.trim() || !formData.tipo_usuario) {
       return Swal.fire({
-        icon: 'warning',
-        title: 'Correo inválido',
-        text: 'Por favor, incluye un "@" en la dirección de correo.',
-        confirmButtonColor: '#1a73e8'
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Completa nombres, apellidos, correo y tipo de usuario."
       });
     }
 
-    try {
-      const method = userToEdit ? "PUT" : "POST";
-      const url = userToEdit 
-        ? `/api/usuarios/${userToEdit.id_usuarios}`
-        : "/api/usuarios";
+    if (!formData.email.includes("@")) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Correo invalido",
+        text: 'Incluye un "@" en la direccion de correo.',
+        confirmButtonColor: "#1a73e8"
+      });
+    }
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+    const payload = {
+      nombres: formData.nombres.trim(),
+      apellidos: formData.apellidos.trim(),
+      email: formData.email.trim().toLowerCase(),
+      telefono: formData.telefono?.trim() || "",
+      tipo_usuario: formData.tipo_usuario
+    };
+
+    try {
+      const userId = userToEdit?.id_usuarios || userToEdit?.id;
+      const url = userId ? `/usuarios/${userId}` : "/usuarios";
+
+      if (userId) {
+        await api.put(url, payload);
+      } else {
+        await api.post(url, payload);
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: userId ? "Actualizado" : "Registrado",
+        text: "Operacion realizada con exito",
+        timer: 2000,
+        showConfirmButton: false
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        // ✅ Alerta visual de éxito (Recuadro verde)
-        Swal.fire({
-          icon: 'success',
-          title: userToEdit ? '¡Actualizado!' : '¡Registrado!',
-          text: data.message || "Operación realizada con éxito",
-          timer: 2000,
-          showConfirmButton: false
-        });
-        
-        // MODIFICACIÓN: Llamada a la prop correcta para refrescar la lista
-        if (onSaveComplete) onSaveComplete(); 
-        
-        if (!userToEdit) setFormData({ nombres: "", apellidos: "", email: "", telefono: "", tipo_usuario: "" });
-      } else {
-        // ✅ Alerta de error del servidor (Recuadro rojo)
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: data.message || "Hubo un problema al procesar la solicitud"
-        });
-      }
+      if (onSaveComplete) onSaveComplete();
+      if (!userId) setFormData(EMPTY_FORM);
     } catch (err) {
-      Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+      const serverMessage = err?.response?.data?.message;
+      Swal.fire(
+        "Error",
+        serverMessage || "No se pudo conectar con el servidor",
+        "error"
+      );
     }
   };
 

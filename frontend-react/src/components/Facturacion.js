@@ -14,6 +14,7 @@ const toArray = (payload) => {
 };
 
 const unwrap = (payload) => payload?.data || payload;
+const IVA_RATE = 0.19;
 
 const toNumber = (value) => {
     const normalized = String(value ?? '0').replace(',', '.');
@@ -173,9 +174,8 @@ const Facturacion = () => {
     };
 
     const getFacturaDetalles = (factura) => {
-        const subtotal = toNumber(
+        const subtotalHospedaje = toNumber(
             factura.subtotal_hospedaje ??
-            factura.subtotal_bruto ??
             0
         );
         const totalServicios = toNumber(
@@ -183,16 +183,21 @@ const Facturacion = () => {
             factura.subtotal_servicios ??
             0
         );
+        const baseGravable = toNumber(
+            factura.resumen_financiero?.subtotal ??
+            factura.subtotal_bruto ??
+            subtotalHospedaje + totalServicios
+        );
         const iva = toNumber(
             factura.resumen_financiero?.impuestos ??
             factura.iva_19 ??
-            subtotal * 0.19
+            baseGravable * IVA_RATE
         );
         const total = toNumber(
-            factura.total_general ??
-            factura.monto_total ??
             factura.resumen_financiero?.total_con_impuestos ??
-            subtotal + totalServicios + iva
+            factura.monto_total ??
+            factura.total_general ??
+            baseGravable + iva
         );
         const dias = toNumber(
             factura.noches_estadia ??
@@ -200,7 +205,20 @@ const Facturacion = () => {
             Math.ceil((new Date(factura.fecha_checkout) - new Date(factura.fecha_checkin)) / (1000 * 60 * 60 * 24))
         );
 
-        return { subtotal, totalServicios, iva, total, dias };
+        return { subtotalHospedaje, totalServicios, baseGravable, iva, total, dias };
+    };
+
+    const getPrecioNocheMostrado = (factura, dias) => {
+        if (factura?.precio_noche_facturado != null) {
+            return toNumber(factura.precio_noche_facturado);
+        }
+
+        const noches = toNumber(dias);
+        if (noches > 0 && factura?.subtotal_hospedaje != null) {
+            return toNumber(factura.subtotal_hospedaje) / noches;
+        }
+
+        return toNumber(factura?.precio_noche);
     };
 
     const seleccionarFacturaPorId = async () => {
@@ -257,11 +275,11 @@ const Facturacion = () => {
         const dias = Math.ceil((new Date(res.fecha_checkout) - new Date(res.fecha_checkin)) / (1000 * 60 * 60 * 24));
         const precioHab = (tipo?.precio_noche || 0) * dias;
         const totalServicios = selectedServiciosFactura.reduce((sum, servicio) => sum + toNumber(servicio.subtotal ?? servicio.precio ?? 0), 0);
-        const subtotal = precioHab + totalServicios;
-        const iva = subtotal * 0.19;
-        const total = subtotal + iva;
+        const baseGravable = precioHab + totalServicios;
+        const iva = baseGravable * IVA_RATE;
+        const total = baseGravable + iva;
 
-        return { usuario, hab, tipo, dias, precioHab, totalServicios, subtotal, iva, total };
+        return { usuario, hab, tipo, dias, precioHab, totalServicios, baseGravable, iva, total };
     };
 
     const reservasFiltradas = reservas.filter(r => {
@@ -388,6 +406,7 @@ const Facturacion = () => {
                 if (selectedFactura) {
                     const factura = selectedFactura;
                     const detalles = getFacturaDetalles(factura);
+                    const precioNocheMostrado = getPrecioNocheMostrado(factura, detalles.dias);
                     const servicios = Array.isArray(factura.servicios) && factura.servicios.length > 0
                         ? factura.servicios
                         : selectedServiciosFactura;
@@ -454,7 +473,7 @@ const Facturacion = () => {
                                             <tr>
                                                 <td><strong>Habitación {factura.nombre_tipo || '—'}</strong> (#{factura.numero_habitacion || '—'})</td>
                                                 <td className="text-end">{detalles.dias}</td>
-                                                <td className="text-end">{formatCurrency(factura.precio_noche)}</td>
+                                                <td className="text-end">{formatCurrency(precioNocheMostrado)}</td>
                                                 <td className="text-end fw-bold">{formatCurrency(factura.subtotal_hospedaje)}</td>
                                             </tr>
                                             {servicios.map((servicio) => (
@@ -479,13 +498,20 @@ const Facturacion = () => {
                                             <span>Servicios:</span>
                                                     <span className="fw-bold">{formatCurrency(totalServiciosCalculado || detalles.totalServicios)}</span>
                                         </div>
+                                        <div className="d-flex justify-content-between mb-2">
+                                            <span>Base antes de IVA:</span>
+                                            <span className="fw-bold">{formatCurrency(detalles.baseGravable)}</span>
+                                        </div>
                                         <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
-                                            <span>IVA:</span>
+                                            <span>IVA (19%):</span>
                                             <span className="fw-bold text-success">{formatCurrency(detalles.iva)}</span>
                                         </div>
-                                        <div className="d-flex justify-content-between p-3 rounded" style={{ background: '#f0c040' }}>
-                                            <span className="fw-bold" style={{ fontSize: '1.1rem' }}>TOTAL A PAGAR:</span>
-                                            <span className="fw-bold" style={{ fontSize: '1.3rem' }}>{formatCurrency(detalles.total)}</span>
+                                        <div
+                                            className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 gap-sm-3 p-3 p-sm-4 rounded-3 w-100"
+                                            style={{ background: 'linear-gradient(135deg, #f0c040 0%, #f6d365 100%)' }}
+                                        >
+                                            <span className="fw-bold text-center text-sm-start" style={{ fontSize: 'clamp(0.95rem, 2.5vw, 1.2rem)', whiteSpace: 'nowrap' }}>TOTAL A PAGAR:</span>
+                                            <span className="fw-bold text-center text-sm-end" style={{ fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', whiteSpace: 'nowrap' }}>{formatCurrency(detalles.total)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -603,20 +629,27 @@ const Facturacion = () => {
                             <div className="row justify-content-end mb-4">
                                 <div className="col-md-4">
                                     <div className="d-flex justify-content-between mb-2">
-                                        <span>Subtotal:</span>
-                                        <span className="fw-bold">{formatCurrency(detalles.subtotal)}</span>
+                                        <span>Hospedaje:</span>
+                                        <span className="fw-bold">{formatCurrency(detalles.precioHab)}</span>
                                     </div>
                                     <div className="d-flex justify-content-between mb-2">
                                         <span>Servicios:</span>
                                         <span className="fw-bold">{formatCurrency(detalles.totalServicios)}</span>
                                     </div>
+                                    <div className="d-flex justify-content-between mb-2">
+                                        <span>Base antes de IVA:</span>
+                                        <span className="fw-bold">{formatCurrency(detalles.baseGravable)}</span>
+                                    </div>
                                     <div className="d-flex justify-content-between mb-3 border-bottom pb-3">
                                         <span>IVA (19%):</span>
                                         <span className="fw-bold text-success">{formatCurrency(detalles.iva)}</span>
                                     </div>
-                                    <div className="d-flex justify-content-between p-3 rounded" style={{ background: '#f0c040' }}>
-                                        <span className="fw-bold" style={{ fontSize: '1.1rem' }}>TOTAL A PAGAR:</span>
-                                        <span className="fw-bold" style={{ fontSize: '1.3rem' }}>{formatCurrency(detalles.total)}</span>
+                                    <div
+                                        className="d-flex justify-content-between align-items-center gap-3 p-3 rounded-3 w-100"
+                                        style={{ background: 'linear-gradient(135deg, #f0c040 0%, #f6d365 100%)' }}
+                                    >
+                                        <span className="fw-bold text-center text-sm-start" style={{ fontSize: 'clamp(0.95rem, 2.5vw, 1.2rem)', whiteSpace: 'nowrap' }}>TOTAL A PAGAR:</span>
+                                        <span className="fw-bold text-center text-sm-end" style={{ fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', whiteSpace: 'nowrap' }}>{formatCurrency(detalles.total)}</span>
                                     </div>
                                 </div>
                             </div>

@@ -52,6 +52,20 @@ const getPrecioServicio = (servicio) => (
     toNumber(servicio?.precio ?? servicio?.costo ?? servicio?.valor ?? servicio?.tarifa)
 );
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const getNochesEstadia = (fechaCheckin, fechaCheckout) => {
+    if (!fechaCheckin || !fechaCheckout) return 0;
+
+    const inicio = new Date(fechaCheckin);
+    const fin = new Date(fechaCheckout);
+
+    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) return 0;
+
+    const diff = Math.ceil((fin - inicio) / MS_PER_DAY);
+    return diff > 0 ? diff : 0;
+};
+
 const compararNumeroHabitacion = (a, b) => {
     const valorA = String(a?.numero_habitacion ?? '').trim();
     const valorB = String(b?.numero_habitacion ?? '').trim();
@@ -159,7 +173,8 @@ const Reservas = ({ soloFormulario, user }) => {
         if (!formData.total_huespedes || formData.total_huespedes < 1) newErrors.total_huespedes = 'Debe ingresar número de huéspedes (mínimo 1)';
         
         if (formData.fecha_checkin && formData.fecha_checkout) {
-            if (new Date(formData.fecha_checkin) >= new Date(formData.fecha_checkout)) {
+            const noches = getNochesEstadia(formData.fecha_checkin, formData.fecha_checkout);
+            if (noches <= 0) {
                 newErrors.fecha_checkout = 'La salida debe ser posterior a la entrada';
             }
         }
@@ -187,14 +202,17 @@ const Reservas = ({ soloFormulario, user }) => {
         const tipo = getTipoHabitacion(tipos, hab);
         const precioNoche = getPrecioNoche(tipo, hab);
         
-        const dias = Math.ceil((new Date(formData.fecha_checkout) - new Date(formData.fecha_checkin)) / (1000 * 60 * 60 * 24));
+        const dias = getNochesEstadia(formData.fecha_checkin, formData.fecha_checkout);
+        if (dias <= 0) return 0;
+
         const precioHab = toNumber(precioNoche) * dias;
         const precioServ = selectedServicios.reduce((sum, id) => {
             const srv = servicios.find(s => Number(s.id_servicio) === Number(id));
             return sum + getPrecioServicio(srv);
         }, 0);
         
-        return toNumber(precioHab) + toNumber(precioServ);
+        const total = toNumber(precioHab) + toNumber(precioServ);
+        return total > 0 ? total : 0;
     };
 
     const handleSubmit = async (e) => {
@@ -569,6 +587,7 @@ const Reservas = ({ soloFormulario, user }) => {
                                 className={`form-control ${errors.fecha_checkin ? 'is-invalid' : ''}`}
                                 value={formData.fecha_checkin}
                                 onChange={(e) => setFormData({...formData, fecha_checkin: e.target.value})}
+                                min={new Date().toISOString().split('T')[0]}
                                 required
                             />
                             {errors.fecha_checkin && <div className="invalid-feedback d-block">{errors.fecha_checkin}</div>}
@@ -580,6 +599,7 @@ const Reservas = ({ soloFormulario, user }) => {
                                 className={`form-control ${errors.fecha_checkout ? 'is-invalid' : ''}`}
                                 value={formData.fecha_checkout}
                                 onChange={(e) => setFormData({...formData, fecha_checkout: e.target.value})}
+                                min={formData.fecha_checkin || new Date().toISOString().split('T')[0]}
                                 required
                             />
                             {errors.fecha_checkout && <div className="invalid-feedback d-block">{errors.fecha_checkout}</div>}

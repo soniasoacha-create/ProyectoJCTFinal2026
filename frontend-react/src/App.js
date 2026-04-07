@@ -11,9 +11,9 @@ const Servicios = lazy(() => import('./components/Servicios'));
 const TiposHabitacion = lazy(() => import('./components/TiposHabitacion'));
 const AdminReportes = lazy(() => import('./components/AdminReportes'));
 const ReservaServicios = lazy(() => import('./components/ReservaServicios'));
-const UserList = lazy(() => import('./components/UserList'));
 const UserForm = lazy(() => import('./components/UserForm'));
 const ClientePerfil = lazy(() => import('./pages/ClientePerfil'));
+const UsuariosPage = lazy(() => import('./pages/UsuariosPage'));
 
 function App() {
   const isAuthenticated = () => !!localStorage.getItem('token');
@@ -45,7 +45,7 @@ function App() {
           <Route path="/tipos-habitacion"  element={<Private element={<TiposHabitacion />} />} />
           <Route path="/recepcion"         element={<Private element={<AdminReportes />} />} />
           <Route path="/reserva-servicios" element={<Private element={<ReservaServicios />} />} />
-          <Route path="/usuarios"          element={<Private element={<UserList />} />} />
+          <Route path="/usuarios"          element={<Private element={<UsuariosPage />} />} />
           <Route path="/perfil"            element={<Private element={getUserRole() === 'cliente' ? <ClientePerfil /> : <UserForm />} />} />
 
           <Route path="*" element={<Navigate to="/" />} />

@@ -63,7 +63,12 @@ const reservaServiciosController = {
         try {
             // Académico: El JOIN permite transformar un ID técnico en un nombre legible para el usuario.
             const [consumos] = await dbPool.query(
-                `SELECT rs.*, s.nombre_servicio, s.precio as precio_unitario
+                `SELECT rs.*, s.nombre_servicio,
+                        CASE
+                            WHEN rs.cantidad IS NULL OR rs.cantidad = 0 THEN rs.subtotal
+                            ELSE ROUND(rs.subtotal / rs.cantidad, 2)
+                        END AS precio_unitario,
+                        s.precio AS precio_catalogo_actual
                  FROM reserva_servicios rs 
                  JOIN servicios s ON rs.id_servicio = s.id_servicio 
                  WHERE rs.id_reserva = ?`,
@@ -73,6 +78,36 @@ const reservaServiciosController = {
         } catch (error) {
             console.error("❌ Error en obtenerPorReserva:", error);
             res.status(500).json({ status: "error", message: "Error al consultar historial de consumos" });
+        }
+    },
+
+    /**
+     * @method eliminarConsumo
+     * Elimina un cargo específico de la tabla intermedia reserva_servicios.
+     */
+    eliminarConsumo: async (req, res) => {
+        const { id_reserva_servicio } = req.params;
+
+        try {
+            const [result] = await dbPool.execute(
+                'DELETE FROM reserva_servicios WHERE id_reserva_servicio = ?',
+                [id_reserva_servicio]
+            );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    status: 'error',
+                    message: 'No se encontró el consumo a eliminar'
+                });
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Consumo eliminado correctamente'
+            });
+        } catch (error) {
+            console.error('❌ Error en eliminarConsumo:', error);
+            res.status(500).json({ status: 'error', message: 'No se pudo eliminar el consumo' });
         }
     },
 

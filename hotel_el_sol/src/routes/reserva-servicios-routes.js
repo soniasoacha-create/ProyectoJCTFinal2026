@@ -18,6 +18,12 @@ const router = express.Router();
 router.post('/', controller.agregarConsumo);
 
 /**
+ * @route DELETE /api/reserva-servicios/:id_reserva_servicio
+ * @desc Elimina un cargo específico de una reserva.
+ */
+router.delete('/:id_reserva_servicio', controller.eliminarConsumo);
+
+/**
  * @route GET /api/reserva-servicios/:id_reserva
  * @desc Recupera el historial detallado de consumos extras de un huésped.
  */

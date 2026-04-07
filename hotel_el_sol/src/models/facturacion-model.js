@@ -2,16 +2,48 @@ import { dbPool } from '../config/database.js';
 
 const DEFAULT_TAX_RATE = 0.19;
 
+const toAmount = (value) => Number(Number(value) || 0);
+
+const getPrecioNocheFacturado = (subtotalHospedaje = 0, nochesEstadia = 0, precioActual = 0) => {
+    const noches = Number(nochesEstadia) || 0;
+
+    if (noches <= 0) {
+        return toAmount(precioActual);
+    }
+
+    return Number((toAmount(subtotalHospedaje) / noches).toFixed(2));
+};
+
 const buildFinancialBreakdown = (subtotalHospedaje = 0, totalServicios = 0) => {
-    const subtotal = Number(subtotalHospedaje) + Number(totalServicios);
+    const hospedaje = Number(subtotalHospedaje) || 0;
+    const servicios = Number(totalServicios) || 0;
+    const subtotal = Number((hospedaje + servicios).toFixed(2));
     const impuestos = Number((subtotal * DEFAULT_TAX_RATE).toFixed(2));
     const totalConImpuestos = Number((subtotal + impuestos).toFixed(2));
 
     return {
         porcentaje_impuesto: DEFAULT_TAX_RATE,
+        subtotal_hospedaje: hospedaje,
+        subtotal_servicios: servicios,
         subtotal,
         impuestos,
         total_con_impuestos: totalConImpuestos
+    };
+};
+
+const attachFacturaSnapshot = (factura) => {
+    if (!factura) return factura;
+
+    const totalServicios = factura.total_servicios ?? factura.subtotal_servicios ?? 0;
+
+    return {
+        ...factura,
+        precio_noche_facturado: getPrecioNocheFacturado(
+            factura.subtotal_hospedaje,
+            factura.noches_estadia,
+            factura.precio_noche
+        ),
+        resumen_financiero: buildFinancialBreakdown(factura.subtotal_hospedaje, totalServicios)
     };
 };
 
@@ -33,14 +65,7 @@ export const getOrCreateFactura = async (id_reserva) => {
 
         if (existingFactura.length > 0) {
             const facturaExistente = existingFactura[0];
-            const totalServicios = facturaExistente.total_servicios ?? facturaExistente.subtotal_servicios ?? 0;
-            return {
-                ...facturaExistente,
-                resumen_financiero: buildFinancialBreakdown(
-                    facturaExistente.subtotal_hospedaje,
-                    totalServicios
-                )
-            };
+            return attachFacturaSnapshot(facturaExistente);
         }
 
         // 2. Calcular total de la reserva con servicios
@@ -75,7 +100,7 @@ export const getOrCreateFactura = async (id_reserva) => {
         }
 
         const data = reservaData[0];
-        const totalGeneral = Number(data.subtotal_hospedaje) + Number(data.total_servicios);
+        const resumenFinanciero = buildFinancialBreakdown(data.subtotal_hospedaje, data.total_servicios);
         const numeroFactura = `FAC-${Date.now()}`;
 
         // 3. Crear nueva factura
@@ -105,21 +130,27 @@ export const getOrCreateFactura = async (id_reserva) => {
             data.subtotal_hospedaje,
             data.total_servicios,
             data.total_servicios,
-            totalGeneral,
+            resumenFinanciero.subtotal,
+            resumenFinanciero.impuestos,
             0,
             0,
-            0,
-            totalGeneral,
-            totalGeneral,
+            resumenFinanciero.total_con_impuestos,
+            resumenFinanciero.total_con_impuestos,
             'generada'
         ]);
-
-        const resumenFinanciero = buildFinancialBreakdown(data.subtotal_hospedaje, data.total_servicios);
 
         return {
             id_factura: result.insertId,
             ...data,
-            total_general: totalGeneral,
+            precio_noche_facturado: getPrecioNocheFacturado(
+                data.subtotal_hospedaje,
+                data.noches_estadia,
+                data.precio_noche
+            ),
+            subtotal_bruto: resumenFinanciero.subtotal,
+            iva_19: resumenFinanciero.impuestos,
+            monto_total: resumenFinanciero.total_con_impuestos,
+            total_general: resumenFinanciero.total_con_impuestos,
             numero_factura: numeroFactura,
             fecha_factura: new Date(),
             estado_factura: 'generada',
@@ -162,12 +193,7 @@ export const getFacturaById = async (id_factura) => {
             return null;
         }
 
-        const factura = rows[0];
-        const totalServicios = factura.total_servicios ?? factura.subtotal_servicios ?? 0;
-        return {
-            ...factura,
-            resumen_financiero: buildFinancialBreakdown(factura.subtotal_hospedaje, totalServicios)
-        };
+        return attachFacturaSnapshot(rows[0]);
     } catch (error) {
         console.error("Error en getFacturaById:", error.message);
         throw error;
@@ -204,12 +230,7 @@ export const getFacturaByReserva = async (id_reserva) => {
             return null;
         }
 
-        const factura = rows[0];
-        const totalServicios = factura.total_servicios ?? factura.subtotal_servicios ?? 0;
-        return {
-            ...factura,
-            resumen_financiero: buildFinancialBreakdown(factura.subtotal_hospedaje, totalServicios)
-        };
+        return attachFacturaSnapshot(rows[0]);
     } catch (error) {
         console.error("Error en getFacturaByReserva:", error.message);
         throw error;
@@ -323,15 +344,17 @@ export const getFacturaCompleta = async (id_reserva) => {
                 rs.subtotal,
                 s.nombre_servicio,
                 s.descripcion,
-                s.precio AS precio_unitario
+                CASE
+                    WHEN rs.cantidad IS NULL OR rs.cantidad = 0 THEN rs.subtotal
+                    ELSE ROUND(rs.subtotal / rs.cantidad, 2)
+                END AS precio_unitario,
+                s.precio AS precio_catalogo_actual
             FROM reserva_servicios rs
             INNER JOIN servicios s ON rs.id_servicio = s.id_servicio
             WHERE rs.id_reserva = ?
         `, [id_reserva]);
 
-        const facturaBase = factura[0];
-        const totalServicios = facturaBase.total_servicios ?? facturaBase.subtotal_servicios ?? 0;
-        const resumenFinanciero = buildFinancialBreakdown(facturaBase.subtotal_hospedaje, totalServicios);
+        const facturaBase = attachFacturaSnapshot(factura[0]);
 
         return {
             ...facturaBase,
@@ -339,8 +362,7 @@ export const getFacturaCompleta = async (id_reserva) => {
             detalle_estadia: {
                 dias_hospedaje: facturaBase.noches_estadia,
                 numero_personas: facturaBase.total_huespedes
-            },
-            resumen_financiero: resumenFinanciero
+            }
         };
     } catch (error) {
         console.error("Error en getFacturaCompleta:", error.message);

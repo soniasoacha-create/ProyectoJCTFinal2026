@@ -9,9 +9,15 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email y contraseña son obligatorios."
+      });
+    }
+
     // 1. Validar que el usuario existe en la tabla 'usuarios'
     // Usamos la función getUsuarioByEmail que añadimos al modelo
-    const user = await UsuarioModel.getUsuarioByEmail(email);
+    const user = await UsuarioModel.getUsuarioByEmail(email.toLowerCase().trim());
 
     if (!user) {
       return res.status(404).json({ 
