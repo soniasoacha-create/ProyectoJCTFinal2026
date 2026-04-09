@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, requireAdminOrModerator } from '../middlewares/roleMiddleware.js';
+import { requireAdminOrModerator } from '../middlewares/roleMiddleware.js';
 import {
     getServicios,
     getServicioById,
@@ -20,18 +20,18 @@ const router = Router();
  */
 
 // ✅ OBTENER TODOS LOS SERVICIOS (Público - cualquier usuario autenticado puede ver)
-router.get('/', authenticate, getServicios);
+router.get('/', getServicios);
 
 // ✅ OBTENER UN SERVICIO POR ID (Público)
-router.get('/:id', authenticate, getServicioById);
+router.get('/:id', getServicioById);
 
 // ✅ CREAR UN NUEVO SERVICIO (Solo Admin/Moderador)
-router.post('/', authenticate, requireAdminOrModerator, createServicio);
+router.post('/', requireAdminOrModerator, createServicio);
 
 // ✅ ACTUALIZAR UN SERVICIO EXISTENTE (Solo Admin/Moderador)
-router.put('/:id', authenticate, requireAdminOrModerator, updateServicio);
+router.put('/:id', requireAdminOrModerator, updateServicio);
 
 // ✅ ELIMINAR UN SERVICIO (Solo Admin/Moderador)
-router.delete('/:id', authenticate, requireAdminOrModerator, deleteServicio);
+router.delete('/:id', requireAdminOrModerator, deleteServicio);
 
 export default router;

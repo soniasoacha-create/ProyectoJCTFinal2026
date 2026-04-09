@@ -39,9 +39,9 @@ router.get('/disponibilidad', getHabitacionesDisponibles);
 /**
  * @route   GET /api/habitaciones
  * @desc    Obtener listado de habitaciones
- * @access  Autenticado, solo Admin/Moderador para ver todas
+ * @access  Solo Admin/Moderador
  */
-router.get('/', getHabitaciones);
+router.get('/', requireAdminOrModerator, getHabitaciones);
 
 /**
  * @route   GET /api/habitaciones/:id

@@ -21,3 +21,13 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Documentos de consulta local (no subir al repositorio)
+ANALISIS_GA8_CUMPLIMIENTO.md
+DOCUMENTACION_PANTALLAS_GA8.md
+INDICE_DOCUMENTACION_GA8.md
+PLAN_CAMBIOS_NECESARIOS.md
+QUICK_START_GA8.md
+REPORTE_FINAL_GA8.md
+RESUMEN_EJECUTIVO_GA8.md
+INFORME_GA7-EV03.md

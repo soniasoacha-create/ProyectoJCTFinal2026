@@ -15,8 +15,7 @@ import reservaServiciosRoutes from './routes/reserva-servicios-routes.js';
 import facturacionRoutes from './routes/facturacion-routes.js';
 
 // Importar middleware
-import { authMiddleware } from './middlewares/authMiddleware.js';
-import { authenticate, requireAdminOrModerator } from './middlewares/roleMiddleware.js';
+import { authenticate } from './middlewares/roleMiddleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;

@@ -14,6 +14,8 @@ const ReservaServicios = lazy(() => import('./components/ReservaServicios'));
 const UserForm = lazy(() => import('./components/UserForm'));
 const ClientePerfil = lazy(() => import('./pages/ClientePerfil'));
 const UsuariosPage = lazy(() => import('./pages/UsuariosPage'));
+const AccessDenied = lazy(() => import('./pages/AccessDenied'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 function App() {
   const isAuthenticated = () => !!localStorage.getItem('token');
@@ -23,8 +25,18 @@ function App() {
     catch { return ''; }
   };
 
-  const Private = ({ element }) =>
-    isAuthenticated() ? element : <Navigate to="/login" />;
+  const Private = ({ element, allowedRoles }) => {
+    if (!isAuthenticated()) return <Navigate to="/login" />;
+
+    if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
+      const role = getUserRole();
+      if (!allowedRoles.includes(role)) {
+        return <Navigate to="/acceso-denegado" />;
+      }
+    }
+
+    return element;
+  };
 
   return (
     <>
@@ -38,17 +50,18 @@ function App() {
           <Route path="/register" element={<Register />} />
 
           {/* Rutas privadas */}
-          <Route path="/habitaciones"      element={<Private element={<Habitaciones />} />} />
+          <Route path="/habitaciones"      element={<Private element={<Habitaciones />} allowedRoles={['administrador', 'moderador']} />} />
           <Route path="/reservas"          element={<Private element={<Reservas />} />} />
           <Route path="/facturacion"       element={<Private element={<Facturacion />} />} />
-          <Route path="/servicios"         element={<Private element={<Servicios />} />} />
-          <Route path="/tipos-habitacion"  element={<Private element={<TiposHabitacion />} />} />
-          <Route path="/recepcion"         element={<Private element={<AdminReportes />} />} />
-          <Route path="/reserva-servicios" element={<Private element={<ReservaServicios />} />} />
-          <Route path="/usuarios"          element={<Private element={<UsuariosPage />} />} />
+          <Route path="/servicios"         element={<Private element={<Servicios />} allowedRoles={['administrador', 'moderador']} />} />
+          <Route path="/tipos-habitacion"  element={<Private element={<TiposHabitacion />} allowedRoles={['administrador', 'moderador']} />} />
+          <Route path="/recepcion"         element={<Private element={<AdminReportes />} allowedRoles={['administrador', 'moderador']} />} />
+          <Route path="/reserva-servicios" element={<Private element={<ReservaServicios />} allowedRoles={['administrador', 'moderador']} />} />
+          <Route path="/usuarios"          element={<Private element={<UsuariosPage />} allowedRoles={['administrador', 'moderador']} />} />
           <Route path="/perfil"            element={<Private element={getUserRole() === 'cliente' ? <ClientePerfil /> : <UserForm />} />} />
+          <Route path="/acceso-denegado"   element={<AccessDenied />} />
 
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </>

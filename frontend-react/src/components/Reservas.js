@@ -5,7 +5,7 @@ import tiposHabitacionService from '../services/tiposHabitacionService';
 import serviciosService from '../services/serviciosService';
 import { getAllUsuarios } from '../services/usuariosService';
 import Swal from 'sweetalert2';
-import { ESTADOS_GESTION_RESERVA, ESTADO_RESERVA_DEFAULT } from '../constants/reservas';
+import { ESTADO_RESERVA_DEFAULT } from '../constants/reservas';
 
 const toArray = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -81,6 +81,78 @@ const compararNumeroHabitacion = (a, b) => {
     if (bEsNumero) return 1;
 
     return valorA.localeCompare(valorB, 'es', { numeric: true, sensitivity: 'base' });
+};
+
+const normalizarEstadoReserva = (value) => String(value || '').trim().toLowerCase().replace('_', '-');
+
+const ESTADOS_RESERVA_UI = {
+    PENDIENTE: 'pendiente',
+    CONFIRMADA: 'confirmada',
+    CHECK_IN: 'check-in',
+    CHECK_OUT: 'check-out',
+    CANCELADA: 'cancelada'
+};
+
+const estadosBloqueanHabitacion = new Set([
+    ESTADOS_RESERVA_UI.PENDIENTE,
+    ESTADOS_RESERVA_UI.CONFIRMADA,
+    ESTADOS_RESERVA_UI.CHECK_IN
+]);
+
+const getAccionesEstadoReserva = (estado) => {
+    const s = normalizarEstadoReserva(estado);
+
+    if (s === ESTADOS_RESERVA_UI.PENDIENTE) {
+        return [ESTADOS_RESERVA_UI.CONFIRMADA, ESTADOS_RESERVA_UI.CANCELADA];
+    }
+    if (s === ESTADOS_RESERVA_UI.CONFIRMADA) {
+        return [ESTADOS_RESERVA_UI.CHECK_IN, ESTADOS_RESERVA_UI.CANCELADA];
+    }
+    if (s === ESTADOS_RESERVA_UI.CHECK_IN) {
+        return [ESTADOS_RESERVA_UI.CHECK_OUT];
+    }
+
+    return [];
+};
+
+const getTextoEstado = (estado) => {
+    const s = normalizarEstadoReserva(estado);
+    if (s === ESTADOS_RESERVA_UI.CHECK_IN) return 'check-in';
+    if (s === ESTADOS_RESERVA_UI.CHECK_OUT) return 'check-out';
+    return s || ESTADOS_RESERVA_UI.PENDIENTE;
+};
+
+const isReservaActivaParaBloqueo = (estado) => estadosBloqueanHabitacion.has(normalizarEstadoReserva(estado));
+
+const hayCruceFechas = (inicioA, finA, inicioB, finB) => {
+    if (!inicioA || !finA || !inicioB || !finB) return false;
+    return inicioA < finB && finA > inicioB;
+};
+
+const isHabitacionDisponibleEnFechas = ({
+    idHabitacion,
+    fechaCheckin,
+    fechaCheckout,
+    reservas,
+    editingId
+}) => {
+    if (!fechaCheckin || !fechaCheckout) return true;
+
+    const inicioNueva = new Date(fechaCheckin);
+    const finNueva = new Date(fechaCheckout);
+    if (Number.isNaN(inicioNueva.getTime()) || Number.isNaN(finNueva.getTime())) return false;
+
+    return !reservas.some((reserva) => {
+        if (Number(reserva.id_habitacion) !== Number(idHabitacion)) return false;
+        if (editingId && Number(reserva.id_reserva) === Number(editingId)) return false;
+        if (!isReservaActivaParaBloqueo(reserva.estado_reserva)) return false;
+
+        const inicioExistente = new Date(reserva.fecha_checkin);
+        const finExistente = new Date(reserva.fecha_checkout);
+        if (Number.isNaN(inicioExistente.getTime()) || Number.isNaN(finExistente.getTime())) return false;
+
+        return hayCruceFechas(inicioNueva, finNueva, inicioExistente, finExistente);
+    });
 };
 
 const Reservas = ({ soloFormulario, user }) => {
@@ -240,7 +312,7 @@ const Reservas = ({ soloFormulario, user }) => {
                 Swal.fire('✅ ¡Éxito!', 'Reserva actualizada correctamente.', 'success');
             } else {
                 const resultado = await reservasService.crearReserva(payload);
-                const idNuevaReserva = resultado?.id_reserva || resultado?.id || 'N/A';
+                const idNuevaReserva = resultado?.data?.id_reserva || resultado?.id_reserva || resultado?.id || 'N/A';
                 const resumenServicios = selectedServicios
                     .map((id) => servicios.find((s) => Number(s.id_servicio || s.id_servicios || s.id) === Number(id)))
                     .filter(Boolean)
@@ -249,7 +321,7 @@ const Reservas = ({ soloFormulario, user }) => {
 
                 await Swal.fire({
                     icon: 'success',
-                    title: '✅ Reserva confirmada',
+                    title: '✅ Reserva registrada',
                     html: `
                         <p class="mb-2">Tu solicitud fue registrada con el número <strong>#${idNuevaReserva}</strong>.</p>
                         <p class="mb-1"><strong>Orden de servicios y hospedaje:</strong></p>
@@ -303,75 +375,14 @@ const Reservas = ({ soloFormulario, user }) => {
         setEditingId(null);
     };
 
-    const cambiarEstadoHabitacion = async (reserva, nuevoEstado) => {
-        const hab = habitaciones.find(h => h.id_habitacion === reserva.id_habitacion);
-        if (!hab) {
-            Swal.fire('Error', 'No se encontró la habitación asociada a la reserva.', 'error');
-            return;
-        }
-
-        let mantenimiento_inicio = null;
-        let mantenimiento_fin = null;
-
-        if (nuevoEstado === 'mantenimiento') {
-            const { value: fechas } = await Swal.fire({
-                title: 'Fechas de mantenimiento',
-                html:
-                    '<input id="mant-inicio" type="date" class="swal2-input" />' +
-                    '<input id="mant-fin" type="date" class="swal2-input" />',
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'Guardar',
-                cancelButtonText: 'Cancelar',
-                preConfirm: () => {
-                    const inicio = document.getElementById('mant-inicio')?.value;
-                    const fin = document.getElementById('mant-fin')?.value;
-                    if (!inicio || !fin) {
-                        Swal.showValidationMessage('Debe ingresar inicio y fin de mantenimiento');
-                        return null;
-                    }
-                    if (new Date(inicio) > new Date(fin)) {
-                        Swal.showValidationMessage('La fecha de fin debe ser posterior a la de inicio');
-                        return null;
-                    }
-                    return { inicio, fin };
-                }
-            });
-
-            if (!fechas) return;
-            mantenimiento_inicio = fechas.inicio;
-            mantenimiento_fin = fechas.fin;
-        }
-
-        try {
-            await habitacionesService.actualizarHabitacion(hab.id_habitacion, {
-                estado: nuevoEstado,
-                mantenimiento_inicio,
-                mantenimiento_fin
-            });
-
-            Swal.fire('✅ Éxito', `Estado de la habitación #${hab.numero_habitacion} actualizado a ${nuevoEstado}.`, 'success');
-            fetchData();
-        } catch (error) {
-            console.error(error);
-            Swal.fire('Error', 'No se pudo actualizar el estado de la habitación.', 'error');
-        }
-    };
-
-    const getEstadoGestion = (reserva, habitacion) => {
-        if (reserva.estado_reserva === 'confirmada' && habitacion?.estado === 'ocupada') return 'confirmada';
-        if (habitacion?.estado === 'disponible') return 'disponible';
-        if (habitacion?.estado === 'ocupada') return 'ocupada';
-        if (habitacion?.estado === 'mantenimiento') return 'mantenimiento';
-        return reserva.estado_reserva || 'pendiente';
-    };
+    const getEstadoGestion = (reserva) => getTextoEstado(reserva.estado_reserva);
 
     const getEstadoBadge = (estado) => {
-        if (estado === 'confirmada') return 'bg-success';
-        if (estado === 'disponible') return 'bg-success';
-        if (estado === 'ocupada') return 'bg-danger';
-        if (estado === 'mantenimiento') return 'bg-warning text-dark';
-        if (estado === 'cancelada') return 'bg-danger';
+        const s = normalizarEstadoReserva(estado);
+        if (s === ESTADOS_RESERVA_UI.CONFIRMADA) return 'bg-success';
+        if (s === ESTADOS_RESERVA_UI.CHECK_IN) return 'bg-info';
+        if (s === ESTADOS_RESERVA_UI.CHECK_OUT) return 'bg-primary';
+        if (s === ESTADOS_RESERVA_UI.CANCELADA) return 'bg-danger';
         return 'bg-warning text-dark';
     };
 
@@ -379,19 +390,27 @@ const Reservas = ({ soloFormulario, user }) => {
         if (!nuevoEstado) return;
 
         try {
-            if (nuevoEstado === 'confirmada') {
-                await reservasService.cambiarEstadoReserva(reserva.id_reserva, 'confirmada');
+            const estadoDestino = normalizarEstadoReserva(nuevoEstado);
+            await reservasService.cambiarEstadoReserva(reserva.id_reserva, estadoDestino);
+
+            if (estadoDestino === ESTADOS_RESERVA_UI.CONFIRMADA || estadoDestino === ESTADOS_RESERVA_UI.CHECK_IN) {
                 await habitacionesService.actualizarHabitacion(reserva.id_habitacion, {
                     estado: 'ocupada',
                     mantenimiento_inicio: null,
                     mantenimiento_fin: null
                 });
-                Swal.fire('✅ Éxito', 'Reserva confirmada y habitación marcada como ocupada.', 'success');
-                fetchData();
-                return;
             }
 
-            await cambiarEstadoHabitacion(reserva, nuevoEstado);
+            if (estadoDestino === ESTADOS_RESERVA_UI.CHECK_OUT || estadoDestino === ESTADOS_RESERVA_UI.CANCELADA) {
+                await habitacionesService.actualizarHabitacion(reserva.id_habitacion, {
+                    estado: 'disponible',
+                    mantenimiento_inicio: null,
+                    mantenimiento_fin: null
+                });
+            }
+
+            Swal.fire('✅ Éxito', `Reserva #${reserva.id_reserva} actualizada a ${getTextoEstado(estadoDestino)}.`, 'success');
+            fetchData();
         } catch (error) {
             console.error(error);
             Swal.fire('Error', 'No se pudo actualizar el estado.', 'error');
@@ -441,7 +460,16 @@ const Reservas = ({ soloFormulario, user }) => {
     const formatCurrency = (v) =>
         new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
 
-    const habitacionesDisponibles = habitaciones.filter(habitacionDisponible);
+    const habitacionesDisponibles = habitaciones.filter((h) => {
+        if (!habitacionDisponible(h)) return false;
+        return isHabitacionDisponibleEnFechas({
+            idHabitacion: h.id_habitacion,
+            fechaCheckin: formData.fecha_checkin,
+            fechaCheckout: formData.fecha_checkout,
+            reservas,
+            editingId
+        });
+    });
     const habitacionesDisponiblesOrdenadas = [...habitacionesDisponibles].sort(compararNumeroHabitacion);
     const fechasCompletas = Boolean(formData.fecha_checkin && formData.fecha_checkout);
     const mostrarNoDisponibilidad = habitacionesDisponibles.length === 0 && (!soloFormularioEfectivo || fechasCompletas);
@@ -498,6 +526,13 @@ const Reservas = ({ soloFormulario, user }) => {
                             {mostrarNoDisponibilidad && (
                                 <div className="alert alert-warning py-2">
                                     No hay habitaciones disponibles para las fechas seleccionadas.
+                                </div>
+                            )}
+
+                            {fechasCompletas && !mostrarNoDisponibilidad && (
+                                <div className="alert alert-success py-2">
+                                    {habitacionesDisponibles.length} de {habitaciones.length} habitaciones disponibles para
+                                    {' '}{getNochesEstadia(formData.fecha_checkin, formData.fecha_checkout)} noche(s).
                                 </div>
                             )}
 
@@ -707,7 +742,8 @@ const Reservas = ({ soloFormulario, user }) => {
                             <tbody>
                                 {reservas.map((res) => {
                                     const hab = habitaciones.find(h => h.id_habitacion === res.id_habitacion);
-                                    const estadoGestion = getEstadoGestion(res, hab);
+                                    const estadoGestion = getEstadoGestion(res);
+                                    const accionesPermitidas = getAccionesEstadoReserva(estadoGestion);
                                     return (
                                         <tr key={res.id_reserva}>
                                             <td className="ps-3 fw-bold">#{res.id_reserva}</td>
@@ -725,20 +761,42 @@ const Reservas = ({ soloFormulario, user }) => {
                                             </td>
                                             <td className="text-center">
                                                 <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEdit(res)} title="Editar">✏️</button>
-                                                <select
-                                                    className="form-select form-select-sm d-inline-block"
-                                                    style={{ width: '180px' }}
-                                                    defaultValue=""
-                                                    onChange={(e) => {
-                                                        actualizarEstadoGestion(res, e.target.value);
-                                                        e.target.value = '';
-                                                    }}
-                                                >
-                                                    <option value="" disabled>Cambiar estado...</option>
-                                                    {ESTADOS_GESTION_RESERVA.map((estado) => (
-                                                        <option key={estado} value={estado}>{estado}</option>
-                                                    ))}
-                                                </select>
+                                                {accionesPermitidas.includes(ESTADOS_RESERVA_UI.CONFIRMADA) && (
+                                                    <button
+                                                        className="btn btn-sm btn-success me-2"
+                                                        onClick={() => actualizarEstadoGestion(res, ESTADOS_RESERVA_UI.CONFIRMADA)}
+                                                        title="Confirmar reserva"
+                                                    >
+                                                        Confirmar
+                                                    </button>
+                                                )}
+                                                {accionesPermitidas.includes(ESTADOS_RESERVA_UI.CHECK_IN) && (
+                                                    <button
+                                                        className="btn btn-sm btn-warning me-2"
+                                                        onClick={() => actualizarEstadoGestion(res, ESTADOS_RESERVA_UI.CHECK_IN)}
+                                                        title="Registrar check-in"
+                                                    >
+                                                        Check-in
+                                                    </button>
+                                                )}
+                                                {accionesPermitidas.includes(ESTADOS_RESERVA_UI.CHECK_OUT) && (
+                                                    <button
+                                                        className="btn btn-sm btn-info text-white me-2"
+                                                        onClick={() => actualizarEstadoGestion(res, ESTADOS_RESERVA_UI.CHECK_OUT)}
+                                                        title="Registrar check-out"
+                                                    >
+                                                        Check-out
+                                                    </button>
+                                                )}
+                                                {accionesPermitidas.includes(ESTADOS_RESERVA_UI.CANCELADA) && (
+                                                    <button
+                                                        className="btn btn-sm btn-danger me-2"
+                                                        onClick={() => actualizarEstadoGestion(res, ESTADOS_RESERVA_UI.CANCELADA)}
+                                                        title="Cancelar reserva"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                )}
                                                 <button
                                                     className="btn btn-sm btn-outline-secondary ms-2"
                                                     onClick={() => normalizarEstadoFila(res)}

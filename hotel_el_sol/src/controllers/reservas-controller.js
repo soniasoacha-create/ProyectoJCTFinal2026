@@ -249,7 +249,7 @@ export const crearReserva = async (req, res) => {
             await connection.commit();
 
             res.status(201).json({
-                message: 'Reserva creada y confirmada exitosamente',
+                message: 'Reserva creada exitosamente (estado inicial: pendiente)',
                 data: {
                     id_reserva,
                     noches,
